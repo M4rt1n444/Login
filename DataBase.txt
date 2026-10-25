@@ -1,0 +1,147 @@
+-- =====================================================================
+-- Base de datos: auth_db  |  Módulo de autenticación (login y registro)
+-- Motor: MySQL 8 (también funciona en MySQL 5.7 y MariaDB)
+-- Cubre: HU-01 registro, HU-02 login, HU-03 recuperar contraseña,
+--        HU-04 cerrar sesión, HU-05 límite de intentos fallidos
+-- =====================================================================
+ 
+DROP DATABASE IF EXISTS auth_db;
+ 
+CREATE DATABASE auth_db
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+USE auth_db;
+-- ---------------------------------------------------------------------
+-- 1) users: las personas registradas (HU-01, HU-02)
+-- ---------------------------------------------------------------------
+CREATE TABLE users (
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name          VARCHAR(100)    NOT NULL,
+    email         VARCHAR(255)    NOT NULL,
+    -- Hash (bcrypt o argon2), NUNCA la contraseña en texto plano (CA-01.7).
+    -- 255 caracteres alcanzan para cualquier algoritmo de hashing común.
+    password_hash VARCHAR(255)    NOT NULL,
+    created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                  ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    -- La collation utf8mb4_unicode_ci NO distingue mayúsculas de minúsculas,
+    -- así que ana@test.local y ANA@test.local cuentan como el mismo correo
+    -- (CA-01.3, caso de prueba CP-04).
+    UNIQUE KEY uq_users_email (email)
+) ENGINE=InnoDB;
+ 
+-- ---------------------------------------------------------------------
+-- 2) password_resets: enlaces de recuperación (HU-03)
+-- ---------------------------------------------------------------------
+CREATE TABLE password_resets (
+    id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id    BIGINT UNSIGNED NOT NULL,
+    -- Se guarda el HASH (SHA-256 en hexadecimal = 64 caracteres) del token,
+    -- no el token. El token real solo viaja en el enlace del correo.
+    token_hash CHAR(64)        NOT NULL,
+    created_at TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- La aplicación guarda aquí created_at + 30 minutos (CA-03.4).
+    expires_at DATETIME        NOT NULL,
+    -- Se llena al usar el enlace: así es de un solo uso (CA-03.3, CA-03.6).
+    used_at    DATETIME        NULL DEFAULT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_password_resets_token (token_hash),
+    KEY idx_password_resets_user (user_id),
+    CONSTRAINT fk_password_resets_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+ 
+-- ---------------------------------------------------------------------
+-- 3) login_attempts: registro de intentos de inicio de sesión (HU-05)
+-- ---------------------------------------------------------------------
+CREATE TABLE login_attempts (
+    id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    -- Se guarda el correo escrito (no user_id) para poder limitar también
+    -- los intentos contra cuentas que no existen sin revelar si existen.
+    email        VARCHAR(255)    NOT NULL,
+    ip_address   VARCHAR(45)     NOT NULL,   -- 45 caracteres alcanzan para IPv6
+    was_success  TINYINT(1)      NOT NULL DEFAULT 0,
+    attempted_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    -- Acelera la consulta "intentos de esta cuenta + IP en los últimos 15 min".
+    KEY idx_login_attempts_lookup (email, ip_address, attempted_at)
+) ENGINE=InnoDB;
+ 
+-- ---------------------------------------------------------------------
+-- 4) sessions: sesiones activas en el servidor (HU-04)
+--    Útil si tu aplicación guarda las sesiones en base de datos. Si tu
+--    framework ya trae su propia tabla de sesiones, puedes omitir esta.
+-- ---------------------------------------------------------------------
+CREATE TABLE sessions (
+    id            VARCHAR(128)    NOT NULL,
+    user_id       BIGINT UNSIGNED NULL,
+    ip_address    VARCHAR(45)     NULL,
+    user_agent    VARCHAR(255)    NULL,
+    created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_activity DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_sessions_user (user_id),
+    -- Cerrar sesión = borrar la fila: la sesión queda invalidada (CA-04.2).
+    CONSTRAINT fk_sessions_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+ 
+-- =====================================================================
+-- DATOS DE PRUEBA (los del Plan de Pruebas)
+-- Usuario ana@test.local con contraseña Abcd1234, hash bcrypt generado
+-- con 12 rondas. Sirve para CP-08 (verificar que no hay texto plano).
+-- =====================================================================
+INSERT INTO users (name, email, password_hash) VALUES
+('Ana Prueba', 'ana@test.local',
+'$2b$12$uhEi3xCNFTgG9KgFwO3jaeeH4NN232uR96eKKefb9qedAouOffW8.');
+ 
+-- =====================================================================
+-- CONSULTAS DE REFERENCIA (las que ejecutará tu aplicación)
+-- Los signos ? son parámetros que la aplicación reemplaza con valores.
+-- =====================================================================
+ 
+-- HU-01 | Registrar usuario (la contraseña ya llega hasheada desde la app)
+-- INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?);
+ 
+-- HU-01 | ¿El correo ya existe? (CP-04: devuelve fila aunque cambien las mayúsculas)
+-- SELECT id FROM users WHERE email = ?;
+ 
+-- HU-02 | Buscar al usuario para validar su contraseña con la función de verificación
+-- SELECT id, name, password_hash FROM users WHERE email = ?;
+ 
+-- HU-03 | Crear enlace de recuperación (vigencia de 30 minutos)
+-- INSERT INTO password_resets (user_id, token_hash, expires_at)
+-- VALUES (?, ?, NOW() + INTERVAL 30 MINUTE);
+ 
+-- HU-03 | Validar el enlace: existe, no está usado y no ha expirado
+-- SELECT id, user_id FROM password_resets
+-- WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW();
+ 
+-- HU-03 | Tras cambiar la contraseña: invalidar el token (CA-03.6)
+-- UPDATE password_resets SET used_at = NOW() WHERE id = ?;
+ 
+-- HU-04 | Cerrar sesión
+-- DELETE FROM sessions WHERE id = ?;
+ 
+-- HU-05 | Registrar un intento (was_success = 0 si falló, 1 si entró)
+-- INSERT INTO login_attempts (email, ip_address, was_success) VALUES (?, ?, ?);
+ 
+-- HU-05 | ¿La cuenta + IP está bloqueada? Cuenta los fallos de los últimos
+-- 15 minutos que ocurrieron DESPUÉS del último inicio de sesión exitoso
+-- (así un acceso exitoso reinicia el contador, CA-05.5). Si devuelve 5 o más,
+-- se bloquea el intento (CA-05.1 y CA-05.2).
+-- SELECT COUNT(*) AS fallos
+-- FROM login_attempts
+-- WHERE email = ? AND ip_address = ? AND was_success = 0
+--   AND attempted_at > NOW() - INTERVAL 15 MINUTE
+--   AND attempted_at > COALESCE(
+--         (SELECT MAX(attempted_at) FROM login_attempts
+--          WHERE email = ? AND ip_address = ? AND was_success = 1),
+--         '1970-01-02');
+ 
+-- Mantenimiento opcional: borrar intentos y tokens viejos
+-- DELETE FROM login_attempts WHERE attempted_at < NOW() - INTERVAL 1 DAY;
+-- DELETE FROM password_resets WHERE expires_at < NOW() - INTERVAL 1 DAY;
