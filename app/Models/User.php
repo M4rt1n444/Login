@@ -59,7 +59,7 @@ class User extends Authenticatable
     protected static function booted(): void
     {
         static::saving(function ($user) {
-            if (isset($user->password) && !isset($user->password_hash)) {
+            if (isset($user->password) && (!isset($user->password_hash) || $user->isDirty('password'))) {
                 $user->password_hash = $user->password;
             }
             if (isset($user->password_hash) && !isset($user->password)) {

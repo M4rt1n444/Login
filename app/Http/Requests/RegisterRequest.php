@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\PasswordPolicy;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RegisterRequest extends FormRequest
@@ -25,13 +26,8 @@ class RegisterRequest extends FormRequest
         return [
             'name'     => ['required', 'string', 'max:255'],
             'email'    => ['required', 'string', 'email:filter', 'max:255', 'unique:users,email'],
-            // CA-01.4: mínimo 8, mayúscula, minúscula y número
-            'password' => [
-                'required', 'string', 'min:8', 'confirmed',
-                'regex:/\p{Lu}/u', // al menos una mayúscula
-                'regex:/\p{Ll}/u', // al menos una minúscula
-                'regex:/\p{N}/u',  // al menos un número
-            ],
+            // HU-01 y HU-03 comparten la misma política de contraseñas.
+            'password' => PasswordPolicy::validationRules(),
             'password_confirmation' => ['required'],
         ];
     }
@@ -43,11 +39,7 @@ class RegisterRequest extends FormRequest
             'email.required'    => 'El correo electrónico es obligatorio.',
             'email.email'       => 'El correo electrónico no tiene un formato válido.',
             'email.unique'      => 'Este correo electrónico ya está registrado.',
-            'password.required' => 'La contraseña es obligatoria.',
-            'password.min'      => 'La contraseña debe tener al menos 8 caracteres.',
-            'password.regex'    => 'La contraseña debe incluir al menos una mayúscula, una minúscula y un número.',
-            'password.confirmed' => 'La contraseña y su confirmación no coinciden.',
             'password_confirmation.required' => 'La confirmación de la contraseña es obligatoria.',
-        ];
+        ] + PasswordPolicy::validationMessages();
     }
 }
