@@ -121,4 +121,77 @@ class AuthenticationTest extends TestCase
             ->get('/dashboard')
             ->assertOk();
     }
+
+    // ---------- HU-04: Cerrar sesión ----------
+    public function test_cp15_usuario_autenticado_puede_cerrar_sesion(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/logout')
+            ->assertRedirect('/login');
+
+        $this->assertGuest();
+    }
+
+    public function test_cp16_despues_de_cerrar_sesion_no_accede_a_area_privada(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post('/logout');
+
+        $this->get('/dashboard')
+            ->assertRedirect('/login');
+    }
+
+    public function test_cp17_invitado_no_puede_hacer_logout(): void
+    {
+        $this->post('/logout')
+            ->assertRedirect('/login');
+    }
+
+    // ---------- HU-05: Límite de intentos fallidos ----------
+    public function test_cp18_bloqueo_despues_de_cinco_intentos_fallidos(): void
+    {
+        $user = User::factory()->create(['email' => 'bloqueo@test.local', 'password' => 'Abcd1234']);
+
+        // 5 intentos fallidos consecutivos
+        for ($i = 1; $i <= 5; $i++) {
+            $response = $this->post('/login', [
+                'email' => 'bloqueo@test.local',
+                'password' => 'Erronea999',
+            ]);
+            $response->assertSessionHasErrors('credentials');
+        }
+
+        // Intento 6 debe estar bloqueado por rate limiting
+        $response = $this->post('/login', [
+            'email' => 'bloqueo@test.local',
+            'password' => 'Abcd1234', // Incluso con clave correcta
+        ]);
+
+        $response->assertSessionHasErrors('credentials');
+        $this->assertGuest();
+    }
+
+    public function test_cp19_login_exitoso_reinicia_contador_de_intentos(): void
+    {
+        $user = User::factory()->create(['email' => 'reinicio@test.local', 'password' => 'Abcd1234']);
+
+        // 3 intentos fallidos
+        for ($i = 1; $i <= 3; $i++) {
+            $this->post('/login', [
+                'email' => 'reinicio@test.local',
+                'password' => 'Erronea999',
+            ]);
+        }
+
+        // Intento exitoso limpia el contador
+        $this->post('/login', [
+            'email' => 'reinicio@test.local',
+            'password' => 'Abcd1234',
+        ])->assertRedirect('/dashboard');
+
+        $this->assertAuthenticated();
+    }
 }

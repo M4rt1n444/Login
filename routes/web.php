@@ -29,4 +29,7 @@ Route::middleware('guest')->group(function () {
 // Área privada (CA-02.5 y CA-02.6)
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [UsersController::class, 'index'])->name('dashboard');
+
+    // HU-04: Cerrar sesión (CA-04.1, CA-04.2, CA-04.3)
+    Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 });

@@ -26,5 +26,6 @@
         <button type="submit">Entrar</button>
     </form>
 
+    <div class="link"><a href="{{ route('password.request') }}">¿Olvidaste tu contraseña?</a></div>
     <div class="link">¿No tienes cuenta? <a href="{{ route('register') }}">Regístrate</a></div>
 @endsection

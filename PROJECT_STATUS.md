@@ -36,31 +36,37 @@ Toda la autenticación está implementada a mano (sin Breeze ni Jetstream) para 
 | ---- | -------------------- | ------------- | ------------------------------------------------------------------------------- |
 | HU-01 | Registro de usuario | ✅ Completada | Controlador, validaciones (nombre, correo, contraseña segura, confirmación) y vista funcionales. |
 | HU-02 | Inicio de sesión    | ✅ Completada | Autenticación con `Auth::attempt`, redirección al dashboard, control de sesión, mensaje genérico ante credenciales incorrectas. |
-| HU-03 | Recuperar contraseña | ⬜ Pendiente  | Tabla `password_resets` ya existe en BD.                                        |
-| HU-04 | Cerrar sesión        | ⬜ Pendiente  | Tabla `sessions` ya existe en BD.                                               |
-| HU-05 | Límite de intentos   | ⬜ Pendiente  | Tabla `login_attempts` ya existe en BD.                                         |
+| HU-03 | Recuperar contraseña | ✅ Completada | Controladores (`PasswordResetLinkController`, `NewPasswordController`), vistas, política de seguridad compartida, expiración a 30 min y tests. Configurado a driver `log` para pruebas locales seguras. |
+| HU-04 | Cerrar sesión        | ✅ Completada | Método `destroy()` en `LoginController`, ruta protegida `POST /logout`, invalidación de sesión + regeneración de token CSRF y botón en dashboard. |
+| HU-05 | Límite de intentos   | ✅ Completada | `RateLimiter` (máx 5 intentos en ventana de 15 min por email e IP), registro en `login_attempts`, mensaje comprensible y reinicio al autenticar. |
 
 ### Pruebas Automatizadas
 
-- **16 pruebas** ejecutadas y pasadas con éxito (`php artisan test`).
-- Los tests cubren los casos de prueba **CP-01 a CP-14** del Plan de Pruebas (TP-S01).
-- Las pruebas usan **SQLite en memoria** (configurado en `phpunit.xml`).
+- **Pruebas Funcionales (Feature):**
+  - `AuthenticationTest.php`: Cubre HU-01 (CP-01 a CP-08), HU-02 (CP-09 a CP-14), HU-04 (CP-15 a CP-17) y HU-05 (CP-18 a CP-19).
+  - `PasswordResetTest.php`: Cubre flujo completo de HU-03 (enlace, reseteo, token único, expiración de 30 min, validación de contraseña).
+  - `UsersListTest.php`: Verifica listado paginado en área privada sin exponer campos sensibles.
+- **Pruebas Unitarias (Unit):**
+  - `PasswordPolicyTest.php`: 4 pruebas unitarias que validan la regla de negocio de contraseñas bajo el patrón **Arrange - Act - Assert (AAA)**.
 
 ### Archivos Clave y Rutas
 
 | Categoría       | Ruta                                                      | Archivos                                             |
 | --------------- | --------------------------------------------------------- | ---------------------------------------------------- |
-| Controladores   | `app/Http/Controllers/`                                   | `LoginController.php`, `RegisterController.php`      |
-| Requests         | `app/Http/Requests/`                                      | `LoginRequest.php`, `RegisterRequest.php`            |
+| Controladores   | `app/Http/Controllers/`                                   | `LoginController.php`, `RegisterController.php`, `UsersController.php` |
+| Controladores Auth | `app/Http/Controllers/Auth/`                           | `PasswordResetLinkController.php`, `NewPasswordController.php` |
+| Requests         | `app/Http/Requests/`                                      | `LoginRequest.php`, `RegisterRequest.php`, `SendPasswordResetLinkRequest.php`, `ResetPasswordRequest.php` |
 | Modelo           | `app/Models/`                                             | `User.php`                                           |
 | Vistas           | `resources/views/`                                        | `login.blade.php`, `register.blade.php`, `dashboard.blade.php` |
+| Vistas Auth      | `resources/views/auth/`                                   | `login.blade.php`, `register.blade.php`, `forgot-password.blade.php`, `reset-password.blade.php` |
 | Layout           | `resources/views/layouts/`                                | `app.blade.php`                                      |
-| Vistas (alias)   | `resources/views/auth/`                                   | `login.blade.php`, `register.blade.php`              |
 | Rutas            | `routes/`                                                 | `web.php`                                            |
-| Tests            | `tests/Feature/`                                          | `AuthenticationTest.php`                             |
+| Tests Feature    | `tests/Feature/`                                          | `AuthenticationTest.php`, `PasswordResetTest.php`, `UsersListTest.php` |
+| Tests Unit       | `tests/Unit/`                                             | `PasswordPolicyTest.php`                             |
+| Migraciones      | `database/migrations/`                                    | `...create_users_table.php`, `...create_cache_table.php`, `...create_jobs_table.php`, `...create_login_attempts_table.php` |
 | Script BD        | raíz                                                      | `DataBase.txt`                                       |
 | Config local     | raíz                                                      | `.env`, `.env.example`                               |
-| Bootstrap        | `bootstrap/`                                              | `app.php` (middleware `redirectUsersTo('/dashboard')`) |
+| Bootstrap        | `bootstrap/`                                              | `app.php`                                            |
 
 ### Trazabilidad de Criterios de Aceptación
 
@@ -68,7 +74,7 @@ Toda la autenticación está implementada a mano (sin Breeze ni Jetstream) para 
 | ------------------- | ------------------------------------------------------------------------------ |
 | CA-01.1 / CA-01.2   | `register.blade.php` + `RegisterRequest` (campos required)                     |
 | CA-01.3             | `RegisterRequest` → `prepareForValidation` (email a minúsculas) + `unique`     |
-| CA-01.4             | `RegisterRequest` (min:8, regex mayúscula, minúscula, número)                  |
+| CA-01.4             | `RegisterRequest` / `PasswordPolicy` (min:8, regex mayúscula, minúscula, número) |
 | CA-01.5             | `RegisterRequest` (confirmed)                                                  |
 | CA-01.6             | `RegisterController@store` (flash `status`)                                    |
 | CA-01.7             | Cast `hashed` en modelo `User` (bcrypt automático)                             |
@@ -76,6 +82,20 @@ Toda la autenticación está implementada a mano (sin Breeze ni Jetstream) para 
 | CA-02.2 / CA-02.3   | `LoginController@store` (`Auth::attempt`, error genérico)                      |
 | CA-02.5             | `redirect()->intended(route('dashboard'))`                                     |
 | CA-02.6             | `Route::middleware('auth')` en `routes/web.php`                                |
+| CA-03.1 / CA-03.2   | `forgot-password.blade.php` + `PasswordResetLinkController@store` (mensaje uniforme) |
+| CA-03.3 / CA-03.6   | Broker nativo de Laravel (`Password::reset`), token seguro y de un solo uso   |
+| CA-03.4             | `config/auth.php` (`expire => 30` minutos)                                     |
+| CA-03.5             | `ResetPasswordRequest` reutiliza `PasswordPolicy::validationRules()`           |
+| CA-03.7             | Invalida credenciales previas al resetear                                      |
+| CA-04.1             | Botón "Cerrar sesión" en `dashboard.blade.php`                                 |
+| CA-04.2             | `LoginController@destroy` (`Auth::logout()`, `$request->session()->invalidate()`) |
+| CA-04.3             | `LoginController@destroy` redirige a `route('login')`                          |
+| CA-04.4             | `Route::middleware('auth')` bloquea navegación posterior a `/dashboard`       |
+| CA-05.1             | `LoginController`: `RateLimiter::tooManyAttempts($throttleKey, 5)` (email + IP) |
+| CA-05.2             | `RateLimiter::hit($throttleKey, 900)` (bloqueo por 15 minutos / 900 segundos)  |
+| CA-05.3             | Mensaje de error genérico informando el tiempo restante en minutos             |
+| CA-05.4             | Desbloqueo automático al expirar la ventana de 15 minutos                      |
+| CA-05.5             | `RateLimiter::clear($throttleKey)` al autenticarse con éxito                   |
 
 ---
 
@@ -118,18 +138,54 @@ Toda la autenticación está implementada a mano (sin Breeze ni Jetstream) para 
 
 ---
 
-## 3. Próximos Pasos / Pendientes (Sprint Backlog)
+### 2026-11-08 — Finalización de Desarrollo (HU-03, HU-04 y HU-05), Pruebas Unitarias AAA y Guía de Despliegue
 
-> Anota aquí las tareas pendientes, decisiones por tomar o trabajo planificado para los siguientes sprints.
+**Responsable:** Alejandro Molina (alejandromolinajuan-maker)
 
-- [ ] **HU-03** — Recuperación de contraseña (tabla `password_resets` ya existe).
-- [ ] **HU-04** — Cerrar sesión (tabla `sessions` ya existe; implementar ruta y lógica de logout).
-- [ ] **HU-05** — Límite de intentos fallidos (tabla `login_attempts` ya existe; implementar middleware o lógica en `LoginController`).
-- [ ] Crear migraciones Laravel formales para las tablas de `auth_db` (actualmente solo existe `DataBase.txt` con DDL puro).
-- [ ] Documentar pruebas manuales con evidencia en la hoja "Ex form Testing" para el entregable.
-- [ ] Revisar y completar el `README.md` con instrucciones de instalación actualizadas (ya no es necesario hacer `composer create-project`).
-- [ ] Configurar `.env.example` con las variables específicas del proyecto.
+**Cambios realizados:**
+
+1. **HU-03 — Recuperación de Contraseña:**
+   - Enlace "¿Olvidaste tu contraseña?" añadido en la vista de login.
+   - Vistas Blade y controladores de recuperación vinculados.
+   - Configuración de correo ajustada a `MAIL_MAILER=log` para evitar fallos 500 en pruebas locales.
+   - Expiración de enlaces configurada a 30 minutos según CA-03.4.
+
+2. **HU-04 — Cerrar Sesión:**
+   - Ruta protegida `POST /logout` agregada en `routes/web.php`.
+   - Método `destroy()` implementado en `LoginController` con invalidación de sesión en servidor y regeneración de token CSRF.
+   - Botón visible de "Cerrar sesión" añadido en `dashboard.blade.php`.
+   - Navegación protegida: no se permite volver a ingresar a `/dashboard` sin autenticarse.
+
+3. **HU-05 — Límite de Intentos Fallidos:**
+   - Control de tasa implementado con `RateLimiter` (máximo 5 intentos fallidos consecutivos en 15 minutos por cuenta e IP).
+   - Bloqueo temporal con mensaje amigable sin revelar información confidencial.
+   - Reinicio del contador de intentos al autenticarse exitosamente.
+   - Registro de intentos en la tabla `login_attempts`.
+   - Creación de migración formal `2026_11_08_000003_create_login_attempts_table.php`.
+
+4. **Pruebas Automatizadas Unitarias y Funcionales:**
+   - Creado `tests/Unit/PasswordPolicyTest.php` con 4 pruebas unitarias documentadas bajo el patrón **Arrange - Act - Assert (AAA)**.
+   - Ampliado `tests/Feature/AuthenticationTest.php` con casos CP-15 a CP-17 (Logout) y CP-18 a CP-19 (Límite de intentos).
+
+5. **Entorno y Soporte al Equipo:**
+   - Configurado `.env.example` pre-adaptado para XAMPP y MySQL `auth_db`.
+   - Redactado el documento `GUIA_INSTALACION_EQUIPO.md` con la solución a errores 400/500 y el paso a paso para el equipo.
 
 ---
 
-> _Última actualización: 2026-10-25 por Samuel._
+## 3. Estado de Tareas del Sprint Backlog
+
+- [x] **HU-01** — Registro de usuario (completo y probado).
+- [x] **HU-02** — Inicio de sesión (completo y probado).
+- [x] **HU-03** — Recuperación de contraseña (completo con token de 30 min y mailer log).
+- [x] **HU-04** — Cerrar sesión (completo con invalidación de sesión y botón en interfaz).
+- [x] **HU-05** — Límite de intentos fallidos (completo con bloqueo en 15 min y registro de intentos).
+- [x] Crear migraciones Laravel formales para `login_attempts` y tablas del sistema.
+- [x] Diseñar e implementar pruebas unitarias bajo patrón AAA (`tests/Unit/PasswordPolicyTest.php`).
+- [x] Configurar `.env.example` optimizado para evitar errores 500 en compañeros de equipo.
+- [x] Crear guía de instalación y despliegue local (`GUIA_INSTALACION_EQUIPO.md`).
+- [ ] Documentar pruebas manuales con evidencia en la hoja Excel del proyecto (a cargo del equipo de testing).
+
+---
+
+> _Última actualización: 2026-11-08 por Alejandro Molina._
