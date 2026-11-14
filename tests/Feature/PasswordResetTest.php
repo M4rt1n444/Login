@@ -1,7 +1,8 @@
 <?php
 
 namespace Tests\Feature;
-
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Password;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -133,4 +134,32 @@ class PasswordResetTest extends TestCase
 
         Notification::assertNothingSent();
     }
+    public function test_reset_email_is_in_spanish_and_contains_the_reset_link(): void
+{
+    Notification::fake();
+    $user = User::factory()->create(['email' => 'ana@example.test']);
+
+    $this->post(route('password.email'), ['email' => $user->email]);
+
+    Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
+        $mail = $notification->toMail($user);
+
+        return $mail->subject === 'Restablece tu contraseña'
+            && str_contains($mail->actionUrl, $notification->token);
+    });
+}
+
+public function test_mail_failure_does_not_break_the_page_nor_reveal_anything(): void
+{
+    Log::spy();
+    Password::shouldReceive('sendResetLink')->once()->andThrow(new \RuntimeException('SMTP caído'));
+
+    $this->post(route('password.email'), ['email' => 'ana@example.test'])
+        ->assertSessionHas(
+            'status',
+            'Si la cuenta existe, recibirás un enlace para restablecer tu contraseña.'
+        );
+
+    Log::shouldHaveReceived('error')->once();
+}
 }

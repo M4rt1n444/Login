@@ -6,7 +6,7 @@ use App\Http\Controllers\UsersController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use Illuminate\Support\Facades\Route;
-use App\Models\User;
+
 
 Route::redirect('/', '/login');
 
@@ -39,6 +39,3 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 });
 
-Route::get('/debug/users', function () {
-    return response()->json(User::all());
-});

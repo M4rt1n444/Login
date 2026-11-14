@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SendPasswordResetLinkRequest;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\View\View;
+use Throwable;
 
 class PasswordResetLinkController extends Controller
 {
@@ -17,9 +19,12 @@ class PasswordResetLinkController extends Controller
 
     public function store(SendPasswordResetLinkRequest $request): RedirectResponse
     {
-        Password::sendResetLink($request->validated());
+        try {
+            Password::sendResetLink($request->validated());
+        } catch (Throwable $e) {
+            Log::error('Fallo al enviar correo de recuperación: '.$e->getMessage());
+        }
 
-        // El mismo mensaje evita revelar si el correo está registrado.
         return back()->with(
             'status',
             'Si la cuenta existe, recibirás un enlace para restablecer tu contraseña.'
