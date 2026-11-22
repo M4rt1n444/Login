@@ -15,7 +15,7 @@
 | **Framework**       | Laravel 11.57.0                                          |
 | **PHP**             | 8.2.12 (XAMPP)                                           |
 | **Base de Datos**   | MySQL 8 — esquema `auth_db`                              |
-| **Sprint Actual**   | Sprint 1 — Autenticación (Registro e Inicio de Sesión)   |
+| **Sprint Actual**   | Sprint 3 — Pruebas de Caja Blanca (Organizador de Tareas y Calendario) |
 | **Entorno Local**   | Windows / XAMPP / Composer 2.10.3                        |
 
 ### Arquitectura
@@ -39,6 +39,7 @@ Toda la autenticación está implementada a mano (sin Breeze ni Jetstream) para 
 | HU-03 | Recuperar contraseña | ✅ Completada | Controladores (`PasswordResetLinkController`, `NewPasswordController`), vistas, política de seguridad compartida, expiración a 30 min y tests. Configurado a driver `log` para pruebas locales seguras. |
 | HU-04 | Cerrar sesión        | ✅ Completada | Método `destroy()` en `LoginController`, ruta protegida `POST /logout`, invalidación de sesión + regeneración de token CSRF y botón en dashboard. |
 | HU-05 | Límite de intentos   | ✅ Completada | `RateLimiter` (máx 5 intentos en ventana de 15 min por email e IP), registro en `login_attempts`, mensaje comprensible y reinicio al autenticar. |
+| HU-06 | Organizador de Tareas | ✅ Completada | (Sprint 3) CRUD de tareas (crear, consultar, editar, eliminar) y visualización en cuadrícula de calendario mensual interactivo. Trazabilidad CA-01 a CA-12. |
 
 ### Pruebas Automatizadas
 
@@ -173,6 +174,42 @@ Toda la autenticación está implementada a mano (sin Breeze ni Jetstream) para 
 
 ---
 
+### 2026-11-22 — Sprint 3: Desarrollo Completo de Organizador de Tareas y Calendario (Caja Blanca)
+
+**Responsable:** Desarrollador (Samuel / Maker)
+
+**Cambios realizados:**
+
+1. **Modelo y Migración de Tareas:**
+   - Creada migración formal `2026_11_22_000004_create_tasks_table.php` con clave foránea a `users`, campos obligatorios (`name`, `start_date`, `end_date`, `status`) y complementario (`description`).
+   - Creado modelo `app/Models/Task.php` con cast de fechas y relación `user()`.
+   - Añadida relación `tasks()` en `app/Models/User.php`.
+
+2. **Validaciones Robustas y Reglas de Negocio (`TaskRequest.php`):**
+   - Validación de campos obligatorios con mensajes claros y descriptivos (CA-11).
+   - Validación de coherencia de fechas `end_date >= start_date` con `after_or_equal` (CA-02).
+   - Restricción estricta de estados a: `'Pendiente'`, `'En progreso'`, `'Completada'` (CA-10).
+
+3. **Controlador y Lógica de Negocio (`TaskController.php`):**
+   - Implementado CRUD completo (`index`, `create`, `store`, `show`, `edit`, `update`, `destroy`).
+   - Aislamiento multi-usuario: validación estricta de propiedad de la tarea (`abort(404)` si se intenta acceder a una tarea inexistente o ajena - CA-12).
+   - Generación dinámica de la cuadrícula del calendario mensual con mapeo de tareas por rango de fechas (CA-03, CA-06).
+   - Filtro opcional por estado en el listado para evaluar bifurcaciones de código (Caja Blanca).
+
+4. **Vistas e Interfaz de Usuario:**
+   - `tasks/index.blade.php`: Listado completo con acciones CRUD + Calendario interactivo con navegación de meses.
+   - `tasks/create.blade.php`: Formulario de creación con manejo de errores visibles.
+   - `tasks/edit.blade.php`: Formulario de edición con datos precargados.
+   - `tasks/show.blade.php`: Vista de detalle completa de la tarea.
+   - Integración de navegación en `dashboard.blade.php` para alternar entre usuarios y tareas.
+
+5. **Pruebas y Documentación:**
+   - Creada suite de pruebas feature automatizadas `tests/Feature/TaskCrudTest.php` con 12 pruebas y 41 aserciones cubriendo CA-01 a CA-12.
+   - Redactado documento `INSTRUCCIONES_PRUEBAS_CAJA_BLANCA.md` con la guía de configuración de Xdebug, comandos de cobertura y mapa de ramas para el equipo de pruebas.
+   - Corregida cabecera `Cache-Control` en `UsersController` asegurando 54/54 tests pasados en el proyecto.
+
+---
+
 ## 3. Estado de Tareas del Sprint Backlog
 
 - [x] **HU-01** — Registro de usuario (completo y probado).
@@ -180,12 +217,14 @@ Toda la autenticación está implementada a mano (sin Breeze ni Jetstream) para 
 - [x] **HU-03** — Recuperación de contraseña (completo con token de 30 min y mailer log).
 - [x] **HU-04** — Cerrar sesión (completo con invalidación de sesión y botón en interfaz).
 - [x] **HU-05** — Límite de intentos fallidos (completo con bloqueo en 15 min y registro de intentos).
-- [x] Crear migraciones Laravel formales para `login_attempts` y tablas del sistema.
-- [x] Diseñar e implementar pruebas unitarias bajo patrón AAA (`tests/Unit/PasswordPolicyTest.php`).
-- [x] Configurar `.env.example` optimizado para evitar errores 500 en compañeros de equipo.
-- [x] Crear guía de instalación y despliegue local (`GUIA_INSTALACION_EQUIPO.md`).
-- [ ] Documentar pruebas manuales con evidencia en la hoja Excel del proyecto (a cargo del equipo de testing).
+- [x] **HU-06 (Sprint 3)** — CRUD de tareas completo y vista de calendario (CA-01 a CA-12).
+- [x] Crear migración y modelo para `tasks` con relación a `users`.
+- [x] Form Request con validación de fechas consistentes y estados válidos.
+- [x] Vistas completas para listado, calendario, creación, edición y detalle.
+- [x] Documentar instrucciones de pruebas de caja blanca y Xdebug (`INSTRUCCIONES_PRUEBAS_CAJA_BLANCA.md`).
+- [x] Suite automatizada de pruebas base para tareas (`tests/Feature/TaskCrudTest.php` - 12/12 aprobadas).
+- [ ] Medición de cobertura con Xdebug y reporte HTML (a cargo del responsable de pruebas).
 
 ---
 
-> _Última actualización: 2026-11-08 por Alejandro Molina._
+> _Última actualización: 2026-11-22 por Samuel (Desarrollador)._

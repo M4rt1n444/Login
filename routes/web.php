@@ -3,6 +3,7 @@
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\UsersController;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,9 @@ Route::get('/debug/users', function () {
 // Área privada (CA-02.5 y CA-02.6)
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [UsersController::class, 'index'])->name('dashboard');
+
+    // SPRINT 3: HU-03 / HU-Tareas - CRUD y Calendario de Tareas (CA-01 a CA-12)
+    Route::resource('tasks', TaskController::class);
 
     // HU-04: Cerrar sesión (CA-04.1, CA-04.2, CA-04.3)
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');

@@ -10,13 +10,15 @@ class UsersController extends Controller
     /**
      * Muestra un listado paginado con datos no sensibles de las cuentas.
      */
-    public function index(): View
+    public function index()
     {
         $users = User::query()
             ->select(['id', 'name', 'email', 'created_at'])
             ->orderBy('id')
             ->paginate(10);
 
-        return view('dashboard', compact('users'));
+        return response()
+            ->view('dashboard', compact('users'))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 }

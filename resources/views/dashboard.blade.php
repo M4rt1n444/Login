@@ -8,13 +8,18 @@
             <h1 style="margin: 0;">Usuarios registrados</h1>
             <p style="margin: 4px 0 0; color: #4b5563;">Bienvenido, <strong>{{ auth()->user()->name }}</strong>.</p>
         </div>
-        <!-- HU-04: Botón para cerrar sesión (CA-04.1) -->
-        <form method="POST" action="{{ route('logout') }}" style="margin: 0;">
-            @csrf
-            <button type="submit" style="width: auto; margin-top: 0; background: #dc2626; color: #fff; padding: 8px 18px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
-                Cerrar sesión
-            </button>
-        </form>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <a href="{{ route('tasks.index') }}" style="display: inline-block; padding: 8px 16px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.9rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                📅 Mis Tareas y Calendario
+            </a>
+            <!-- HU-04: Botón para cerrar sesión (CA-04.1) -->
+            <form method="POST" action="{{ route('logout') }}" style="margin: 0;">
+                @csrf
+                <button type="submit" style="width: auto; margin-top: 0; background: #dc2626; color: #fff; padding: 8px 18px; border-radius: 6px; font-weight: 500; font-size: 0.9rem; cursor: pointer;">
+                    Cerrar sesión
+                </button>
+            </form>
+        </div>
     </div>
 
     @if ($users->isEmpty())

@@ -56,6 +56,14 @@ class User extends Authenticatable
         return $this->password ?? $this->password_hash;
     }
 
+    /**
+     * Relación con las tareas del usuario (SPRINT 3).
+     */
+    public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
     protected static function booted(): void
     {
         static::saving(function ($user) {
