@@ -205,8 +205,10 @@ Toda la autenticación está implementada a mano (sin Breeze ni Jetstream) para 
 
 5. **Pruebas y Documentación:**
    - Creada suite de pruebas feature automatizadas `tests/Feature/TaskCrudTest.php` con 12 pruebas y 41 aserciones cubriendo CA-01 a CA-12.
-   - Redactado documento `INSTRUCCIONES_PRUEBAS_CAJA_BLANCA.md` con la guía de configuración de Xdebug, comandos de cobertura y mapa de ramas para el equipo de pruebas.
-   - Corregida cabecera `Cache-Control` en `UsersController` asegurando 54/54 tests pasados en el proyecto.
+   - Implementados 6 métodos de dominio en el modelo `Task` (`duracionEnDias`, `aplicaEnFecha`, `rangoDeFechasEsValido`, `estaVencida`, `esCompletada`, `esPendiente`).
+   - Creada suite de pruebas unitarias bajo patrón AAA `tests/Unit/TaskUnitTest.php` (6 tests unitarios para documentar en la matriz de pruebas en Excel).
+   - Redactado documento `INSTRUCCIONES_PRUEBAS_CAJA_BLANCA.md` con la guía de configuración de Xdebug, comandos de cobertura, mapa de ramas y tabla para Excel para el equipo de pruebas.
+   - Suite completa en verde: **60/60 tests pasados (260 aserciones)** sin errores.
 
 ---
 
@@ -218,11 +220,12 @@ Toda la autenticación está implementada a mano (sin Breeze ni Jetstream) para 
 - [x] **HU-04** — Cerrar sesión (completo con invalidación de sesión y botón en interfaz).
 - [x] **HU-05** — Límite de intentos fallidos (completo con bloqueo en 15 min y registro de intentos).
 - [x] **HU-06 (Sprint 3)** — CRUD de tareas completo y vista de calendario (CA-01 a CA-12).
-- [x] Crear migración y modelo para `tasks` con relación a `users`.
-- [x] Form Request con validación de fechas consistentes y estados válidos.
-- [x] Vistas completas para listado, calendario, creación, edición y detalle.
-- [x] Documentar instrucciones de pruebas de caja blanca y Xdebug (`INSTRUCCIONES_PRUEBAS_CAJA_BLANCA.md`).
-- [x] Suite automatizada de pruebas base para tareas (`tests/Feature/TaskCrudTest.php` - 12/12 aprobadas).
+  - [x] Crear migración y modelo para `tasks` con relación a `users`.
+  - [x] Form Request con validación de fechas consistentes y estados válidos.
+  - [x] Vistas completas para listado, calendario, creación, edición y detalle.
+  - [x] Métodos de dominio y pruebas unitarias (AAA) para matriz de Excel.
+  - [x] Documentar instrucciones de pruebas de caja blanca y Xdebug (`INSTRUCCIONES_PRUEBAS_CAJA_BLANCA.md`).
+  - [x] Suite automatizada de pruebas base para tareas (`tests/Feature/TaskCrudTest.php` y `tests/Unit/TaskUnitTest.php`).
 - [ ] Medición de cobertura con Xdebug y reporte HTML (a cargo del responsable de pruebas).
 
 ---

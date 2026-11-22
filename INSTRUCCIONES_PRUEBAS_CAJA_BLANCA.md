@@ -125,4 +125,39 @@ Cuenta con **12 pruebas automatizadas y 41 aserciones** aprobadas al 100%:
 php artisan test tests/Feature/TaskCrudTest.php
 ```
 
-El responsable de pruebas puede complementar este archivo agregando más casos de borde si desea subir la cobertura de líneas y ramas al porcentaje exigido por el docente.
+---
+
+## 6. Métodos de Dominio y Pruebas Unitarias (Para Documentar en Excel)
+
+La docente / pauta del Sprint 3 solicita:  
+> *"Al menos 5 métodos, por cada método una prueba unitaria. Se documentan las pruebas unitarias en Excel y después de las unitarias van las de caja blanca."*
+
+En el modelo `app/Models/Task.php` se desarrollaron **6 métodos de dominio** con su respectiva suite unitaria en:  
+📁 **`tests/Unit/TaskUnitTest.php`** (Bajo el patrón **Arrange - Act - Assert (AAA)**).
+
+Comando para ejecutar únicamente las pruebas unitarias:
+```powershell
+php artisan test --testsuite=Unit
+```
+
+### Tabla Lista para Copiar / Pegar en el Excel de Entrega:
+
+| ID Caso Unitario | Método Evaluado | Clase / Archivo | Escenario / Condición | Patrón AAA (Arrange - Act - Assert) | Resultado Esperado | Estado |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **PU-01** | `duracionEnDias()` | `App\Models\Task` | Rango válido normal (2026-11-20 a 2026-11-25) | **Arrange:** Tarea con fechas válidas.<br>**Act:** `$tarea->duracionEnDias()`<br>**Assert:** Comprobar que retorna 6 días. | Retorna entero `6` (días inclusivos). | **Aprobado** |
+| **PU-02** | `duracionEnDias()` | `App\Models\Task` | Rango inválido (fecha fin menor a inicio) o fechas nulas | **Arrange:** Tarea con fin anterior a inicio.<br>**Act:** `$tarea->duracionEnDias()`<br>**Assert:** Comprobar retorno 0. | Retorna `0` sin lanzar excepciones. | **Aprobado** |
+| **PU-03** | `aplicaEnFecha($fecha)` | `App\Models\Task` | Pertenencia de una fecha a la ventana de la tarea | **Arrange:** Tarea del 20 al 25 de nov.<br>**Act:** Evaluar fechas 19, 20, 22, 25 y 26 nov.<br>**Assert:** Validar booleanos true/false. | `true` si cae dentro del rango (inclusivo), `false` si es exterior. | **Aprobado** |
+| **PU-04** | `rangoDeFechasEsValido()` | `App\Models\Task` | Coherencia temporal (`end_date >= start_date`) | **Arrange:** Instanciar tareas válidas e inconsistentes.<br>**Act:** `$tarea->rangoDeFechasEsValido()`<br>**Assert:** Validar coherencia lógica. | `true` si `end >= start`; `false` en caso contrario. | **Aprobado** |
+| **PU-05** | `estaVencida($ref)` | `App\Models\Task` | Detección de vencimiento con respecto a una fecha | **Arrange:** Tarea atrasada pendiente vs completada.<br>**Act:** `$tarea->estaVencida($hoy)`<br>**Assert:** Verificar estado de vencimiento. | `true` si fecha fin expiró y NO está completada. | **Aprobado** |
+| **PU-06** | `esCompletada()` y `esPendiente()` | `App\Models\Task` | Evaluación de estados del ciclo de vida | **Arrange:** Tareas en estado Pendiente, En progreso, Completada.<br>**Act:** `$tarea->esCompletada()`, `$tarea->esPendiente()`<br>**Assert:** Comprobar flags de estado. | Booleanos acordes al estado actual. | **Aprobado** |
+
+---
+
+## 7. Resumen de Ejecución General del Proyecto
+Al ejecutar toda la suite de pruebas del sistema:
+```powershell
+php artisan test
+```
+**Resultado:** **60 tests passed, 260 assertions (0 errores).**  
+Todo el desarrollo del Sprint 3 está funcional, aislado y listo para sustentar y documentar cobertura.
+

@@ -51,9 +51,7 @@ class TaskController extends Controller
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $currentDateStr = Carbon::createFromDate($year, $month, $day)->format('Y-m-d');
             $dayTasks = $tasks->filter(function ($t) use ($currentDateStr) {
-                $start = $t->start_date?->format('Y-m-d');
-                $end = $t->end_date?->format('Y-m-d');
-                return $currentDateStr >= $start && $currentDateStr <= $end;
+                return $t->aplicaEnFecha($currentDateStr);
             });
 
             $calendarDays[$day] = [
